@@ -19,15 +19,15 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-8 w-full max-w-7xl mx-auto">
 
     <div>
       <h1 class="text-3xl font-bold text-gray-900">
-        Clientes
+        Vendedores
       </h1>
 
       <p class="text-gray-500 mt-1">
-        Vendedores
+        Gestion de vendedores
       </p>
     </div>
 
