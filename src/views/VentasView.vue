@@ -86,6 +86,7 @@ const validarVenta = () => {
 
 const limpiarFormulario = () => {
   usarCanje.value = false;
+  busquedaClienteVenta.value = "";
 
   nuevaVenta.value = {
     fecha: "",
@@ -95,15 +96,15 @@ const limpiarFormulario = () => {
     observacion: "",
     productos: [{ productoId: null, precioVentaPesos: null }],
     pagos: [{
-    metodoPago: "TRANSFERENCIA",
-    moneda: "PESOS",
-    monto: null,
-    cotizacionUsada: cotizacionActual.value
-  }],
+      metodoPago: "TRANSFERENCIA",
+      moneda: "PESOS",
+      monto: null,
+      cotizacionUsada: cotizacionActual.value
+    }],
     productoCanje: null
   };
 
-  const productoCanje = ref({
+  productoCanje.value = {
     nombre: "iPhone",
     categoria: "IPHONE",
     marca: "Apple",
@@ -115,7 +116,34 @@ const limpiarFormulario = () => {
     valorTomadoPesos: null,
     precioVentaEstimadoPesos: null,
     observacion: ""
-  });
+  };
+};
+
+const busquedaClienteVenta = ref("");
+const clientesFiltradosVenta = computed(() => {
+  if (!busquedaClienteVenta.value.trim()) {
+    return [];
+  }
+
+  const textoBusqueda = busquedaClienteVenta.value.toLowerCase();
+
+  return clientes.value
+    .filter((cliente) => {
+      const texto = `
+        ${cliente.nombre || ""}
+        ${cliente.apellido || ""}
+        ${cliente.dni || ""}
+        ${cliente.telefono || ""}
+      `.toLowerCase();
+
+      return texto.includes(textoBusqueda);
+    })
+    .slice(0, 5);
+});
+
+const seleccionarClienteVenta = (cliente) => {
+  nuevaVenta.value.clienteId = cliente.id;
+  busquedaClienteVenta.value = `${cliente.nombre || ""} ${cliente.apellido || ""}`.trim();
 };
 
 const guardarVenta = async () => {
@@ -662,15 +690,37 @@ onMounted(() => {
             <input v-model="nuevaVenta.fecha" type="date" class="input" />
           </div>
 
-          <div>
-            <label class="label">Cliente</label>
-            <select v-model.number="nuevaVenta.clienteId" class="input">
-              <option :value="null">Seleccionar cliente</option>
-              <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
-                {{ cliente.nombre }} {{ cliente.apellido }}
-              </option>
-            </select>
-          </div>
+          <div class="relative">
+              <label class="label">Cliente</label>
+
+              <input
+                v-model="busquedaClienteVenta"
+                type="text"
+                placeholder="Buscar cliente por nombre o DNI"
+                class="input"
+              />
+
+              <div
+                v-if="clientesFiltradosVenta.length > 0"
+                class="absolute z-20 mt-2 w-full bg-white border border-zinc-200 rounded-2xl shadow-lg overflow-hidden"
+              >
+                <button
+                  v-for="cliente in clientesFiltradosVenta"
+                  :key="cliente.id"
+                  type="button"
+                  @click="seleccionarClienteVenta(cliente)"
+                  class="w-full text-left px-4 py-3 hover:bg-zinc-100 transition"
+                >
+                  <p class="font-semibold text-zinc-900">
+                    {{ cliente.nombre }} {{ cliente.apellido }}
+                  </p>
+
+                  <p class="text-sm text-zinc-500">
+                    DNI: {{ cliente.dni || "Sin DNI" }} · Tel: {{ cliente.telefono || "Sin teléfono" }}
+                  </p>
+                </button>
+              </div>
+            </div>
 
           <div>
             <label class="label">Vendedor</label>

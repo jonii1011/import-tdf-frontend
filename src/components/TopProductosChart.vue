@@ -26,16 +26,34 @@ const props = defineProps({
   }
 });
 
+const formatearVariante = (variante) => {
+  switch (variante) {
+    case "PRO_MAX":
+      return "Pro Max";
+    case "PRO":
+      return "Pro";
+    case "PLUS":
+      return "Plus";
+    default:
+      return "";
+  }
+};
+
+const nombreProducto = (producto) => {
+  return `
+    ${producto.nombreProducto || ""}
+    ${producto.modelo || ""}
+    ${formatearVariante(producto.varianteProducto)}
+    ${producto.capacidad || ""}
+  `.replace(/\s+/g, " ").trim();
+};
+
 const chartData = computed(() => {
   return {
-    labels: props.productos.map(
-      producto => `${producto.nombreProducto}`
-    ),
+    labels: props.productos.map((producto) => nombreProducto(producto)),
     datasets: [
       {
-        data: props.productos.map(
-          producto => producto.cantidadVendida
-        ),
+        data: props.productos.map((producto) => producto.cantidadVendida),
         backgroundColor: "#18181b",
         borderRadius: 8
       }
@@ -50,6 +68,13 @@ const chartOptions = {
   plugins: {
     legend: {
       display: false
+    },
+    tooltip: {
+      callbacks: {
+        label: (context) => {
+          return `${context.raw} ventas`;
+        }
+      }
     }
   },
   scales: {

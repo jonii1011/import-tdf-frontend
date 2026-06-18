@@ -1,13 +1,13 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import api from "../api/axios";
-
 import VentasChart from "../components/VentasChart.vue";
 import TopProductosChart from "../components/TopProductosChart.vue";
 
 const resumen = ref(null);
 const ventasMensuales = ref([]);
 const topProductos = ref([]);
+const mesSeleccionado = ref("2026-06");
 
 const tipoPeriodo = ref("MES");
 
@@ -26,9 +26,19 @@ const ticketPromedio = computed(() => {
 
 const obtenerResumen = async () => {
   try {
-    const response = await api.get(
-      `/dashboard/resumen?tipo=${tipoPeriodo.value}`
-    );
+    let response;
+
+    if (tipoPeriodo.value === "MES") {
+      const [anio, mes] = mesSeleccionado.value.split("-");
+
+      response = await api.get(
+        `/dashboard/resumen-mensual?mes=${mes}&anio=${anio}`
+      );
+    } else {
+      response = await api.get(
+        `/dashboard/resumen?tipo=${tipoPeriodo.value}`
+      );
+    }
 
     resumen.value = response.data;
 
@@ -52,10 +62,14 @@ const obtenerVentasMensuales = async () => {
 
 const obtenerTopProductos = async () => {
   try {
-    const response = await api.get(
-      `/dashboard/top-productos?tipo=${tipoPeriodo.value}`
-    );
+    let url = `/dashboard/top-productos?tipo=${tipoPeriodo.value}`;
 
+    if (tipoPeriodo.value === "MES") {
+      const [anio, mes] = mesSeleccionado.value.split("-");
+      url += `&mes=${mes}&anio=${anio}`;
+    }
+
+    const response = await api.get(url);
     topProductos.value = response.data;
 
   } catch (error) {
@@ -117,6 +131,14 @@ onMounted(() => {
         >
           Mes
         </button>
+
+        <input
+            v-if="tipoPeriodo === 'MES'"
+            v-model="mesSeleccionado"
+            @change="cambiarPeriodo('MES')"
+            type="month"
+            class="border border-zinc-200 rounded-2xl px-4 py-2 outline-none focus:ring-2 focus:ring-black"
+          />
 
       </div>
 
