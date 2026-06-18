@@ -45,6 +45,7 @@ const nuevoProducto = ref({
   precioCostoUsd: null,
   precioCostoPesos: null,
   precioVentaPesos: null,
+  tipoAccesorio: null,
   fechaIngreso: "",
   vendedor: {
     id: null
@@ -150,10 +151,25 @@ const guardarProducto = async () => {
       nuevoProducto.value.precioCostoPesos = costoPesosCalculado.value;
     }
 
-    if (nuevoProducto.value.categoria !== "IPHONE") {
-      nuevoProducto.value.varianteProducto = null;
-    }
+    if (
+        nuevoProducto.value.categoria !== "IPHONE" &&
+        nuevoProducto.value.tipoAccesorio !== "FUNDA"
+      ) {
+        nuevoProducto.value.varianteProducto = null;
+      }
 
+      if (nuevoProducto.value.categoria !== "ACCESORIO") {
+        nuevoProducto.value.tipoAccesorio = null;
+      }
+
+      if (
+        nuevoProducto.value.categoria !== "IPHONE" &&
+        nuevoProducto.value.categoria !== "SAMSUNG" &&
+        nuevoProducto.value.categoria !== "IPAD" &&
+        nuevoProducto.value.categoria !== "MACBOOK"
+      ) {
+        nuevoProducto.value.capacidad = null;
+      }
     await api.post("/productos", nuevoProducto.value);
 
     nuevoProducto.value = {
@@ -172,6 +188,7 @@ const guardarProducto = async () => {
       precioCostoPesos: null,
       precioVentaPesos: null,
       fechaIngreso: "",
+      tipoAccesorio: null,
       vendedor: {
         id: null
       }
@@ -360,6 +377,7 @@ onMounted(() => {
         />
 
         <input
+          v-if="nuevoProducto.categoria !== 'ACCESORIO' || nuevoProducto.tipoAccesorio === 'FUNDA'"
           v-model="nuevoProducto.modelo"
           type="text"
           placeholder="Modelo"
@@ -367,7 +385,11 @@ onMounted(() => {
         />
 
         <select
-          v-if="nuevoProducto.categoria === 'IPHONE'"
+            v-if="
+              nuevoProducto.categoria === 'IPHONE' ||
+              (nuevoProducto.categoria === 'ACCESORIO' &&
+                nuevoProducto.tipoAccesorio === 'FUNDA')
+            "
           v-model="nuevoProducto.varianteProducto"
           class="border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-black"
         >
@@ -379,6 +401,27 @@ onMounted(() => {
         </select>
 
         <select
+          v-if="nuevoProducto.categoria === 'ACCESORIO'"
+          v-model="nuevoProducto.tipoAccesorio"
+          class="border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-black"
+        >
+          <option :value="null">Seleccionar accesorio</option>
+          <option value="FUNDA">Funda</option>
+          <option value="AIRPODS">AirPods</option>
+          <option value="CARGADOR">Cargador</option>
+          <option value="CABLE">Cable</option>
+          <option value="VIDRIO_TEMPLADO">Vidrio templado</option>
+          <option value="APPLE_WATCH">Apple Watch</option>
+          <option value="OTRO">Otro</option>
+        </select>
+
+        <select
+          v-if="
+          nuevoProducto.categoria === 'IPHONE' ||
+          nuevoProducto.categoria === 'SAMSUNG' ||
+          nuevoProducto.categoria === 'IPAD' ||
+          nuevoProducto.categoria === 'MACBOOK'
+        "
         v-model="nuevoProducto.capacidad"
         class="border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-black">
           <option :value="null">Seleccionar capacidad</option>
