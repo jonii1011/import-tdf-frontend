@@ -44,6 +44,7 @@ const obtenerProductos = async () => productos.value = (await api.get("/producto
 
 const agregarProducto = () => {
   nuevaVenta.value.productos.push({ productoId: null, precioVentaPesos: null });
+  busquedasProductosVenta.value.push("");
 };
 
 const agregarPago = () => {
@@ -87,6 +88,7 @@ const validarVenta = () => {
 const limpiarFormulario = () => {
   usarCanje.value = false;
   busquedaClienteVenta.value = "";
+  busquedasProductosVenta.value = [""];
 
   nuevaVenta.value = {
     fecha: "",
@@ -169,6 +171,7 @@ const guardarVenta = async () => {
 const eliminarProducto = (index) => {
   if (nuevaVenta.value.productos.length > 1) {
     nuevaVenta.value.productos.splice(index, 1);
+    busquedasProductosVenta.value.splice(index, 1);
   }
 };
 
@@ -553,15 +556,37 @@ const resetearFiltros = () => {
   filtroMetodoPago.value = "TODOS";
 };
 
+const formatearTipoAccesorio = (tipoAccesorio) => {
+  switch (tipoAccesorio) {
+    case "FUNDA":
+      return "Funda";
+    case "CARGADOR":
+      return "Cargador";
+    case "CABLE":
+      return "Cable";
+    case "AURICULAR":
+      return "Auricular";
+    default:
+      return "Accesorio";
+  }
+};
+
 const nombreProductoCompleto = (producto) => {
-  return `
-    ${producto.nombre}
-    ${producto.modelo}
-    ${formatearVariante(producto.varianteProducto)}
-    ${producto.capacidad}
-    ${producto.color}
-    ${producto.condicionBateria ? `Batería ${producto.condicionBateria}%` : ""}
-  `;
+  const nombreBase =
+    producto.categoria === "ACCESORIO"
+      ? formatearTipoAccesorio(producto.tipoAccesorio)
+      : producto.nombre;
+
+  return [
+    nombreBase,
+    producto.modelo,
+    formatearVariante(producto.varianteProducto),
+    producto.capacidad,
+    producto.color,
+    producto.condicionBateria ? `Batería ${producto.condicionBateria}%` : null
+  ]
+    .filter((valor) => valor !== null && valor !== undefined && valor !== "")
+    .join(" ");
 };
 
 const ventaDetalle = ref(null);
@@ -572,6 +597,58 @@ const abrirDetalleVenta = (venta) => {
 
 const cerrarDetalleVenta = () => {
   ventaDetalle.value = null;
+};
+
+const busquedasProductosVenta = ref([""]);
+
+const normalizarTexto = (texto) => {
+  return String(texto || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const productosFiltradosVenta = (index) => {
+  const textoBusqueda = normalizarTexto(busquedasProductosVenta.value[index]);
+
+  if (!textoBusqueda) return [];
+
+  const palabrasBusqueda = textoBusqueda.split(" ");
+
+  const productosUnicos = Array.from(
+    new Map(productos.value.map((producto) => [producto.id, producto])).values()
+  );
+
+  return productosUnicos
+    .filter((producto) => {
+      if (producto.stock <= 0) return false;
+
+      const textoProducto = normalizarTexto(`
+        ${producto.nombre || ""}
+        ${producto.categoria || ""}
+        ${producto.modelo || ""}
+        ${formatearVariante(producto.varianteProducto) || ""}
+        ${producto.capacidad || ""}
+        ${producto.color || ""}
+        ${producto.tipoAccesorio || ""}
+      `);
+
+      return palabrasBusqueda.every((palabra) =>
+        textoProducto.includes(palabra)
+      );
+    })
+    .slice(0, 10);
+};
+
+const seleccionarProductoVenta = (producto, index) => {
+  nuevaVenta.value.productos[index].productoId = producto.id;
+  nuevaVenta.value.productos[index].precioVentaPesos = producto.precioVentaPesos;
+
+  busquedasProductosVenta.value[index] =
+    `${nombreProductoCompleto(producto)} - Stock: ${producto.stock}`;
 };
 
 onMounted(() => {
@@ -756,24 +833,35 @@ onMounted(() => {
               class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4"
             >
 
-              <select
-                v-model.number="productoVenta.productoId"
-                class="input bg-white"
-              >
-                <option :value="null">
-                  Seleccionar producto
-                </option>
+              <div class="relative">
+                  <input
+                    v-model="busquedasProductosVenta[index]"
+                    type="text"
+                    placeholder="Buscar producto..."
+                    class="input bg-white"
+                  />
 
-                <option
-                  v-for="producto in productos"
-                  :key="producto.id"
-                  :value="producto.id"
-                  :disabled="producto.stock <= 0"
-                >
-                  {{ nombreProductoCompleto(producto) }} - Stock: {{ producto.stock }}
-                </option>
+                  <div
+                    v-if="productosFiltradosVenta(index).length > 0"
+                    class="absolute z-20 mt-2 w-full bg-white border border-zinc-200 rounded-2xl shadow-lg overflow-hidden max-h-72 overflow-y-auto"
+                  >
+                    <button
+                      v-for="producto in productosFiltradosVenta(index)"
+                      :key="`${index}-${producto.id}`"
+                      type="button"
+                      @click="seleccionarProductoVenta(producto, index)"
+                      class="w-full text-left px-4 py-3 hover:bg-zinc-100 transition"
+                    >
+                      <p class="font-semibold text-zinc-900">
+                        {{ nombreProductoCompleto(producto) }}
+                      </p>
 
-              </select>
+                      <p class="text-sm text-zinc-500">
+                        Stock: {{ producto.stock }} · Venta: ${{ formatearPesos(producto.precioVentaPesos) }}
+                      </p>
+                    </button>
+                  </div>
+                </div>
 
               <input
                 v-model.number="productoVenta.precioVentaPesos"

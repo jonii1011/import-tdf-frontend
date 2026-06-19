@@ -201,6 +201,28 @@ const guardarProducto = async () => {
   }
 };
 
+const nombreCompletoProducto = (producto) => {
+  const nombreBase =
+    producto.categoria === "ACCESORIO"
+      ? formatearTipoAccesorio(producto.tipoAccesorio)
+      : producto.nombre;
+
+    if (
+    producto.categoria === "ACCESORIO" &&
+    ["CARGADOR", "CABLE"].includes(producto.tipoAccesorio)
+  ) {
+    return nombreBase;
+  }
+
+  return [
+    nombreBase,
+    producto.modelo,
+    formatearVariante(producto.varianteProducto),
+  ]
+    .filter(Boolean)
+    .join(" ");
+};
+
 const productoEditando = ref(null);
 
 const abrirEdicion = (producto) => {
@@ -254,6 +276,20 @@ const productosFiltrados = computed(() => {
     return coincideCategoria && coincideVendedor && coincideBusqueda;
   });
 });
+
+const formatearTipoAccesorio = (tipo) => {
+  const nombres = {
+    FUNDA: "Funda",
+    AIRPODS: "AirPods",
+    CARGADOR: "Cargador",
+    CABLE: "Cable",
+    VIDRIO_TEMPLADO: "Vidrio templado",
+    APPLE_WATCH: "Apple Watch",
+    OTRO: "Accesorio",
+  };
+
+  return nombres[tipo] || "Accesorio";
+};
 
 const resetearFiltros = () => {
   busqueda.value = "";
@@ -377,7 +413,6 @@ onMounted(() => {
         />
 
         <input
-          v-if="nuevoProducto.categoria !== 'ACCESORIO' || nuevoProducto.tipoAccesorio === 'FUNDA'"
           v-model="nuevoProducto.modelo"
           type="text"
           placeholder="Modelo"
@@ -630,18 +665,22 @@ onMounted(() => {
           >
             <td class="p-4">
               <p class="font-semibold text-gray-900">
-                  {{ producto.nombre }}
+                  {{ nombreCompletoProducto(producto) }}
 
                   <span
                     v-if="producto.estadoProducto === 'USADO' && producto.condicionBateria"
                     class="ml-2 text-sm text-green-600"
                   >
-                     {{ producto.condicionBateria }}%🔋
+                    {{ producto.condicionBateria }}%🔋
                   </span>
                 </p>
-              <p class="text-sm text-gray-500">
-                {{ producto.modelo}}  {{ formatearVariante(producto.varianteProducto) }} - {{ producto.capacidad }} - {{ producto.color }}
-              </p>
+                <template v-if="producto.categoria === 'ACCESORIO' && ['CARGADOR', 'CABLE', 'AIRPODS', 'FUNDA'].includes(producto.tipoAccesorio)">
+                  {{ producto.color }}
+                </template>
+
+                <template v-else>
+                  {{ producto.capacidad }} - {{ producto.color }}
+                </template>
             </td>
 
             <td class="p-4 text-gray-700">
