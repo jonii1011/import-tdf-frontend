@@ -37,14 +37,45 @@ const productoCanje = ref({
   observacion: ""
 });
 
-const obtenerVentas = async () => ventas.value = (await api.get("/ventas")).data;
+const paginaActual = ref(0);
+const totalPaginas = ref(0);
+const totalVentas = ref(0);
+const tamanioPagina = ref(20);
+
+const obtenerVentas = async () => {
+  const response = await api.get("/ventas", {
+    params: {
+      page: paginaActual.value,
+      size: tamanioPagina.value
+    }
+  });
+
+  ventas.value = response.data.content;
+  totalPaginas.value = response.data.totalPages;
+  totalVentas.value = response.data.totalElements;
+};
 const obtenerClientes = async () => clientes.value = (await api.get("/clientes")).data;
 const obtenerVendedores = async () => vendedores.value = (await api.get("/vendedores")).data;
-const obtenerProductos = async () => productos.value = (await api.get("/productos/stock")).data;
+
+const buscarProductosVenta = async (index) => {
+  const texto = busquedasProductosVenta.value[index];
+
+  if (!texto || texto.trim().length < 2) {
+    resultadosBusquedaProductos.value[index] = [];
+    return;
+  }
+
+  const response = await api.get("/productos/buscar", {
+    params: { texto }
+  });
+
+  resultadosBusquedaProductos.value[index] = response.data;
+};
 
 const agregarProducto = () => {
   nuevaVenta.value.productos.push({ productoId: null, precioVentaPesos: null });
   busquedasProductosVenta.value.push("");
+  resultadosBusquedaProductos.value.push([]);
 };
 
 const agregarPago = () => {
@@ -89,6 +120,7 @@ const limpiarFormulario = () => {
   usarCanje.value = false;
   busquedaClienteVenta.value = "";
   busquedasProductosVenta.value = [""];
+  resultadosBusquedaProductos.value = [[]];
 
   nuevaVenta.value = {
     fecha: "",
@@ -157,8 +189,8 @@ const guardarVenta = async () => {
     await api.post("/ventas", nuevaVenta.value);
 
     limpiarFormulario();
+    paginaActual.value = 0;
     await obtenerVentas();
-    await obtenerProductos();
 
     mostrarFormulario.value = false;
 
@@ -172,6 +204,7 @@ const eliminarProducto = (index) => {
   if (nuevaVenta.value.productos.length > 1) {
     nuevaVenta.value.productos.splice(index, 1);
     busquedasProductosVenta.value.splice(index, 1);
+    resultadosBusquedaProductos.value.splice(index, 1);
   }
 };
 
@@ -571,6 +604,7 @@ const formatearTipoAccesorio = (tipoAccesorio) => {
   }
 };
 
+
 const nombreProductoCompleto = (producto) => {
   const nombreBase =
     producto.categoria === "ACCESORIO"
@@ -591,8 +625,9 @@ const nombreProductoCompleto = (producto) => {
 
 const ventaDetalle = ref(null);
 
-const abrirDetalleVenta = (venta) => {
-  ventaDetalle.value = venta;
+const abrirDetalleVenta = async (venta) => {
+  const response = await api.get(`/ventas/${venta.id}`);
+  ventaDetalle.value = response.data;
 };
 
 const cerrarDetalleVenta = () => {
@@ -600,6 +635,8 @@ const cerrarDetalleVenta = () => {
 };
 
 const busquedasProductosVenta = ref([""]);
+
+const resultadosBusquedaProductos = ref([[]]);
 
 const normalizarTexto = (texto) => {
   return String(texto || "")
@@ -611,36 +648,8 @@ const normalizarTexto = (texto) => {
     .trim();
 };
 
-const productosFiltradosVenta = (index) => {
-  const textoBusqueda = normalizarTexto(busquedasProductosVenta.value[index]);
-
-  if (!textoBusqueda) return [];
-
-  const palabrasBusqueda = textoBusqueda.split(" ");
-
-  const productosUnicos = Array.from(
-    new Map(productos.value.map((producto) => [producto.id, producto])).values()
-  );
-
-  return productosUnicos
-    .filter((producto) => {
-      if (producto.stock <= 0) return false;
-
-      const textoProducto = normalizarTexto(`
-        ${producto.nombre || ""}
-        ${producto.categoria || ""}
-        ${producto.modelo || ""}
-        ${formatearVariante(producto.varianteProducto) || ""}
-        ${producto.capacidad || ""}
-        ${producto.color || ""}
-        ${producto.tipoAccesorio || ""}
-      `);
-
-      return palabrasBusqueda.every((palabra) =>
-        textoProducto.includes(palabra)
-      );
-    })
-    .slice(0, 10);
+const productosFiltradosVenta = () => {
+  return productos.value.slice(0, 10);
 };
 
 const seleccionarProductoVenta = (producto, index) => {
@@ -649,13 +658,15 @@ const seleccionarProductoVenta = (producto, index) => {
 
   busquedasProductosVenta.value[index] =
     `${nombreProductoCompleto(producto)} - Stock: ${producto.stock}`;
+
+  resultadosBusquedaProductos.value[index] = [];
 };
+
 
 onMounted(() => {
   obtenerVentas();
   obtenerClientes();
   obtenerVendedores();
-  obtenerProductos();
   obtenerCotizacionActual();
 });
 </script>
@@ -836,17 +847,18 @@ onMounted(() => {
               <div class="relative">
                   <input
                     v-model="busquedasProductosVenta[index]"
+                    @input="buscarProductosVenta(index)"
                     type="text"
                     placeholder="Buscar producto..."
                     class="input bg-white"
                   />
 
                   <div
-                    v-if="productosFiltradosVenta(index).length > 0"
+                    v-if="resultadosBusquedaProductos[index]?.length > 0"
                     class="absolute z-20 mt-2 w-full bg-white border border-zinc-200 rounded-2xl shadow-lg overflow-hidden max-h-72 overflow-y-auto"
                   >
                     <button
-                      v-for="producto in productosFiltradosVenta(index)"
+                      v-for="producto in resultadosBusquedaProductos[index]"
                       :key="`${index}-${producto.id}`"
                       type="button"
                       @click="seleccionarProductoVenta(producto, index)"
@@ -1082,6 +1094,31 @@ onMounted(() => {
           </tr>
         </tbody>
       </table>
+
+      <div class="flex items-center justify-between p-5 border-t border-gray-100">
+            <button
+              type="button"
+              :disabled="paginaActual === 0"
+              @click="paginaActual--; obtenerVentas()"
+              class="border border-zinc-200 rounded-xl px-4 py-2 font-semibold hover:bg-zinc-100 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Anterior
+            </button>
+
+            <p class="text-sm text-zinc-500">
+              Página {{ paginaActual + 1 }} de {{ totalPaginas }}
+              · {{ totalVentas }} ventas
+            </p>
+
+            <button
+              type="button"
+              :disabled="paginaActual + 1 >= totalPaginas"
+              @click="paginaActual++; obtenerVentas()"
+              class="border border-zinc-200 rounded-xl px-4 py-2 font-semibold hover:bg-zinc-100 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Siguiente
+            </button>
+          </div>
     </section>
 
     <div
@@ -1166,14 +1203,7 @@ onMounted(() => {
             <div class="flex justify-between gap-4">
               <div>
                 <p class="font-bold text-zinc-900">
-                  {{ detalle.producto?.nombre }}
-                  {{ detalle.producto?.modelo }}
-                  {{ formatearVariante(detalle.producto?.varianteProducto) }}
-                </p>
-
-                <p class="text-sm text-zinc-500">
-                  {{ detalle.producto?.capacidad }}
-                  · {{ detalle.producto?.color }}
+                  {{ nombreProductoCompleto(detalle.producto) }}
                 </p>
               </div>
             </div>

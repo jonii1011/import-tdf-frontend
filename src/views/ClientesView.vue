@@ -1,8 +1,10 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import api from "../api/axios";
 
 const clientes = ref([]);
+const mostrarFormulario = ref(false);
+const busqueda = ref("");
 
 const nuevoCliente = ref({
   nombre: "",
@@ -14,12 +16,26 @@ const nuevoCliente = ref({
 
 const obtenerClientes = async () => {
   try {
-    const response = await api.get("/clientes");
+    const texto = busqueda.value.trim();
+
+    const response = texto.length >= 2
+      ? await api.get("/clientes/buscar", {
+          params: { texto }
+        })
+      : await api.get("/clientes");
+
     clientes.value = response.data;
+
   } catch (error) {
     console.error("Error al obtener clientes", error);
   }
 };
+
+watch(busqueda, () => {
+  obtenerClientes();
+});
+
+
 
 const guardarCliente = async () => {
   try {
@@ -33,7 +49,7 @@ const guardarCliente = async () => {
       observacion: ""
     };
 
-    obtenerClientes();
+    await obtenerClientes();
 
   } catch (error) {
     console.error("Error al guardar cliente", error);
@@ -58,7 +74,29 @@ onMounted(() => {
       </p>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <div class="flex items-center justify-between gap-4">
+
+        <div class="flex gap-3">
+          <input
+            v-model="busqueda"
+            type="text"
+            placeholder="Buscar cliente por nombre o DNI"
+            class="w-96 border border-zinc-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-black"
+          />
+        </div>
+
+        <button
+          type="button"
+          @click="mostrarFormulario = !mostrarFormulario"
+          class="bg-black text-white rounded-2xl px-5 py-3 font-bold hover:bg-zinc-800 transition"
+        >
+          {{ mostrarFormulario ? "Cancelar" : "+ Agregar cliente" }}
+        </button>
+
+      </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6"
+    v-if="mostrarFormulario">
       <h2 class="text-xl font-bold mb-5">
         Nuevo cliente
       </h2>

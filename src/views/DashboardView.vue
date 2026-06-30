@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import api from "../api/axios";
 import VentasChart from "../components/VentasChart.vue";
 import TopProductosChart from "../components/TopProductosChart.vue";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/vue/24/outline";
 
 const resumen = ref(null);
 const ventasMensuales = ref([]);
@@ -10,6 +11,8 @@ const topProductos = ref([]);
 const mesSeleccionado = ref("2026-06");
 
 const tipoPeriodo = ref("MES");
+
+const mostrarMontos = ref(true);
 
 const formatearPesos = (valor) => {
   return new Intl.NumberFormat("es-AR").format(valor || 0);
@@ -145,55 +148,61 @@ onMounted(() => {
     </div>
 
     <div
-      v-if="resumen"
-      class="grid grid-cols-1 md:grid-cols-3 gap-5"
-    >
+  v-if="resumen"
+  class="grid grid-cols-1 md:grid-cols-3 gap-5"
+>
+  <div class="bg-white rounded-3xl border border-zinc-200 shadow-sm p-6">
+    <p class="text-zinc-500 text-sm">Ventas</p>
 
-      <div class="bg-white rounded-3xl border border-zinc-200 shadow-sm p-6">
-        <p class="text-zinc-500 text-sm">Ventas</p>
+    <h2 class="text-3xl font-bold mt-2 text-zinc-900">
+      {{ resumen.totalNegocio.cantidadVentas }}
+    </h2>
+  </div>
 
-        <h2 class="text-3xl font-bold mt-2 text-zinc-900">
-          {{ resumen.totalNegocio.cantidadVentas }}
-        </h2>
-      </div>
+  <div class="bg-white rounded-3xl border border-zinc-200 shadow-sm p-6">
+    <div class="flex items-center justify-between">
+      <p class="text-zinc-500 text-sm">Ingresos</p>
 
-      <div class="bg-white rounded-3xl border border-zinc-200 shadow-sm p-6">
-        <p class="text-zinc-500 text-sm">Ingresos</p>
-
-        <h2 class="text-3xl font-bold mt-2 text-zinc-900">
-          ${{ formatearPesos(resumen.totalNegocio.ingresosTotales) }}
-        </h2>
-      </div>
-
-      <div class="bg-white rounded-3xl border border-zinc-200 shadow-sm p-6">
-        <p class="text-zinc-500 text-sm">Ganancia</p>
-
-        <h2 class="text-3xl font-bold mt-2 text-green-600">
-          ${{ formatearPesos(resumen.totalNegocio.gananciaTotal) }}
-        </h2>
-      </div>
-
+      <button
+        @click="mostrarMontos = !mostrarMontos"
+        class="text-zinc-500 hover:text-zinc-700"
+      >
+        <EyeIcon v-if="!mostrarMontos" class="w-5 h-5" />
+        <EyeSlashIcon v-else class="w-5 h-5" />
+      </button>
     </div>
 
+    <h2 class="text-3xl font-bold mt-2 text-zinc-900">
+      {{
+        mostrarMontos
+          ? `$${formatearPesos(resumen.totalNegocio.ingresosTotales)}`
+          : "••••••••"
+      }}
+    </h2>
+  </div>
+
+  <div class="bg-white rounded-3xl border border-zinc-200 shadow-sm p-6">
+    <p class="text-zinc-500 text-sm">Ganancia</p>
+
+    <h2 class="text-3xl font-bold mt-2 text-green-600">
+      {{
+        mostrarMontos
+          ? `$${formatearPesos(resumen.totalNegocio.gananciaTotal)}`
+          : "••••••••"
+      }}
+    </h2>
+  </div>
+</div>
+
     <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-      <div class="bg-white rounded-3xl border border-zinc-200 shadow-sm p-6">
-        <h2 class="text-2xl font-bold text-zinc-900 mb-2">
-          Ventas por mes
-        </h2>
-
-        <p class="text-sm text-zinc-500 mb-6">
-          Evolución mensual de ingresos.
-        </p>
 
         <VentasChart
           :ventasMensuales="ventasMensuales"
         />
-      </div>
 
       <div class="bg-white rounded-3xl border border-zinc-200 shadow-sm p-6">
         <h2 class="text-2xl font-bold text-zinc-900 mb-2">
-          Top equipos vendidos
+          Top 10 productos vendidos
         </h2>
 
         <p class="text-sm text-zinc-500 mb-6">

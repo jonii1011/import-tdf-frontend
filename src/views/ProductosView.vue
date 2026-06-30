@@ -127,13 +127,31 @@ const formatearVariante = (variante) => {
 
 };
 
+const paginaActual = ref(0);
+const totalPaginas = ref(0);
+const totalProductos = ref(0);
+const tamanioPagina = ref(20);
+
 const obtenerProductos = async () => {
-  try {
-    const response = await api.get("/productos/stock");
-    productos.value = response.data;
-  } catch (error) {
-    console.error("Error al obtener productos", error);
-  }
+  const response = await api.get("/productos/stock", {
+    params: {
+      page: paginaActual.value,
+      size: tamanioPagina.value,
+      busqueda: busqueda.value || null,
+      categoria:
+        filtroCategoria.value === "TODOS"
+          ? null
+          : filtroCategoria.value,
+      vendedorId:
+        filtroVendedor.value === "TODOS"
+          ? null
+          : filtroVendedor.value
+    }
+  });
+
+  productos.value = response.data.content;
+  totalPaginas.value = response.data.totalPages;
+  totalProductos.value = response.data.totalElements;
 };
 
 const obtenerVendedores = async () => {
@@ -252,31 +270,6 @@ const guardarEdicion = async () => {
   }
 };
 
-const productosFiltrados = computed(() => {
-  return productos.value.filter((producto) => {
-    const coincideCategoria =
-      filtroCategoria.value === "TODOS" ||
-      producto.categoria === filtroCategoria.value;
-
-    const coincideVendedor =
-      filtroVendedor.value === "TODOS" ||
-      producto.vendedor?.id === filtroVendedor.value;
-
-    const texto = `
-      ${producto.categoria}
-      ${producto.marca}
-      ${producto.modelo}
-      ${producto.varianteProducto || ""}
-      ${producto.capacidad}
-      ${producto.color}
-    `.toLowerCase();
-
-    const coincideBusqueda = texto.includes(busqueda.value.toLowerCase());
-
-    return coincideCategoria && coincideVendedor && coincideBusqueda;
-  });
-});
-
 const formatearTipoAccesorio = (tipo) => {
   const nombres = {
     FUNDA: "Funda",
@@ -295,12 +288,23 @@ const resetearFiltros = () => {
   busqueda.value = "";
   filtroCategoria.value = "TODOS";
   filtroVendedor.value = "TODOS";
+
+  paginaActual.value = 0;
+  obtenerProductos();
 };
 
 const mostrarFormulario = ref(false);
 const busqueda = ref("");
 const filtroCategoria = ref("TODOS");
 const filtroVendedor = ref("TODOS");
+
+watch(
+  [busqueda, filtroCategoria, filtroVendedor],
+  () => {
+    paginaActual.value = 0;
+    obtenerProductos();
+  }
+);
 
 onMounted(() => {
   obtenerProductos();
@@ -659,7 +663,7 @@ onMounted(() => {
 
         <tbody>
           <tr
-            v-for="producto in productosFiltrados"
+            v-for="producto in productos"
             :key="producto.id"
             class="border-b border-gray-100 hover:bg-gray-50 transition"
           >
@@ -744,6 +748,31 @@ onMounted(() => {
         </tbody>
 
       </table>
+
+      <div class="flex items-center justify-between p-5 border-t border-gray-100">
+            <button
+              type="button"
+              :disabled="paginaActual === 0"
+              @click="paginaActual--; obtenerProductos()"
+              class="border border-zinc-200 rounded-xl px-4 py-2 font-semibold hover:bg-zinc-100 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Anterior
+            </button>
+
+            <p class="text-sm text-zinc-500">
+              Página {{ paginaActual + 1 }} de {{ totalPaginas }}
+              · {{ totalProductos }} Productos
+            </p>
+
+            <button
+              type="button"
+              :disabled="paginaActual + 1 >= totalPaginas"
+              @click="paginaActual++; obtenerProductos()"
+              class="border border-zinc-200 rounded-xl px-4 py-2 font-semibold hover:bg-zinc-100 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Siguiente
+            </button>
+        </div>
 
     </div>
 
